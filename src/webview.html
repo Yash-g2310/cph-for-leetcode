@@ -144,6 +144,11 @@
                     inputDiv.appendChild(variable);
                     const value = document.createElement("textarea");
                     value.value = entry[1];
+                    value.addEventListener("input", (event) => {
+                        testCase.input[entry[0]] = event.target.value;
+                        saveTestCases();
+                    });
+
                     inputDiv.appendChild(value);
                     div.appendChild(inputDiv);
                 });
@@ -154,6 +159,12 @@
                 const expectedOutput = document.createElement("textarea");
                 expectedOutput.className = "expectedOutput-value";
                 expectedOutput.value = testCase.output || "";
+
+                expectedOutput.addEventListener("input", (event) => {
+                    testCase.output = expectedOutput.value;
+                    saveTestCases();
+                });
+                
                 div.appendChild(expectedOutput);
                 
                 const outputHeader = document.createElement("p");
@@ -170,6 +181,7 @@
                 container.appendChild(div);
             });
         }
+
         function addTestCase() {
             const testCase = {};
             testCase["input"] = {};
@@ -184,6 +196,13 @@
             renderTestCases();
         }
 
+        function saveTestCases() {
+            vscode.postMessage({
+                command: "saveTestCases",
+                testCases: testCases
+            });
+        }
+        
         function runTestCases() {
             vscode.postMessage({
                 command: "runTestCases",
@@ -203,8 +222,8 @@
 
         function updateTestResults(results) {
             const outputDivs = document.getElementsByClassName("output-value");
-            testCases.forEach((testCase, index) => {
-                outputDivs[index].value = results[index];
+            outputDivs.forEach((output, index) => {
+                output.value = results[index];
             });
         }
 

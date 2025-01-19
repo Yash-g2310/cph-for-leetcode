@@ -71,6 +71,15 @@ class TestCaseViewProvider {
                         this._updateView();
                     }
                     break;
+                case "saveTestCases":
+                    if (this._activeFile) {
+                        this._testCasesStorage[this._activeFile] = message.testCases;
+                        this._globalState.update('testCaseStorage', this._testCasesStorage);
+                    }
+                    break;
+                case "runTestCases":
+                    this._runTestCases();
+                    break;
             }
         });
 
@@ -110,7 +119,7 @@ class TestCaseViewProvider {
             vscode.window.showErrorMessage("No active file selected.");
             return;
         }
-
+        
         const testCases = this._testCasesStorage[this._activeFile] || [];
         const results = [];
 
@@ -132,7 +141,7 @@ class TestCaseViewProvider {
         const fileExtension = path.extname(this._activeFile).substring(1);
 
         let runCommand;
-        switch (fileExtension) {
+                switch (fileExtension) {
             case 'js':
                 runCommand = `node ${this._activeFile}`;
                 break;
@@ -140,12 +149,53 @@ class TestCaseViewProvider {
                 runCommand = `python ${this._activeFile}`;
                 break;
             case 'cpp':
-                runCommand = `g++ ${this._activeFile} -o ${this._activeFile}.out && ${this._activeFile}.out`;
+                runCommand = `g++ "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`;
+                break;
+            case 'c':
+                runCommand = `gcc "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`;
                 break;
             case 'java':
-                runCommand = `javac ${this._activeFile} && java ${path.basename(this._activeFile, '.java')}`;
+                runCommand = `javac "${this._activeFile}" && java -cp "${path.dirname(this._activeFile)}" "${path.basename(this._activeFile, '.java')}"`;
                 break;
-            // Add more cases for other languages as needed
+            case 'cs':
+                runCommand = `csc "${this._activeFile}" && "${path.basename(this._activeFile, '.cs')}.exe"`;
+                break;
+            case 'ts':
+                runCommand = `tsc "${this._activeFile}" && node "${this._activeFile.replace('.ts', '.js')}"`;
+                break;
+            case 'php':
+                runCommand = `php "${this._activeFile}"`;
+                break;
+            case 'swift':
+                runCommand = `swift "${this._activeFile}"`;
+                break;
+            case 'kt':
+                runCommand = `kotlinc "${this._activeFile}" -include-runtime -d "${this._activeFile}.jar" && java -jar "${this._activeFile}.jar"`;
+                break;
+            case 'dart':
+                runCommand = `dart "${this._activeFile}"`;
+                break;
+            case 'go':
+                runCommand = `go run "${this._activeFile}"`;
+                break;
+            case 'rb':
+                runCommand = `ruby "${this._activeFile}"`;
+                break;
+            case 'scala':
+                runCommand = `scala "${this._activeFile}"`;
+                break;
+            case 'rs':
+                runCommand = `rustc "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`;
+                break;
+            case 'rkt':
+                runCommand = `racket "${this._activeFile}"`;
+                break;
+            case 'erl':
+                runCommand = `erl -noshell -s "${path.basename(this._activeFile, '.erl')}" main -s init stop`;
+                break;
+            case 'ex':
+                runCommand = `elixir "${this._activeFile}"`;
+                break;
             default:
                 vscode.window.showErrorMessage(`Unsupported file extension: ${fileExtension}`);
                 return { input: testCase.input, output: "Unsupported file extension" };

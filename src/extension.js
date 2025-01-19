@@ -117,6 +117,7 @@ function activate(context) {
 				}
 				vscode.commands.executeCommand("testCaseView.focus").then(() => {
 					testCaseViewProvider.setActiveFile(filePath);
+					testCaseViewProvider.saveTestCasesForFile(filePath);
 				});
 				vscode.window.showInformationMessage(testCaseViewProvider._testCasesStorage[filePath]);
 
@@ -126,7 +127,16 @@ function activate(context) {
 		}
 	);
 
-	context.subscriptions.push(disposable, fetchProblem);
+	const runTestCases = vscode.commands.registerCommand(
+		"cph-for-leetcode.runTestCases",
+		async function () {
+			vscode.commands.executeCommand("testCaseView.focus").then(() => {
+				testCaseViewProvider._runTestCases();
+			})
+		}
+	);
+
+	context.subscriptions.push(disposable, fetchProblem, runTestCases);
 }
 
 // This method is called when your extension is deactivated

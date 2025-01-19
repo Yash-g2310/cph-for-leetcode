@@ -25,6 +25,10 @@
       {
         "command": "cph-for-leetcode.fetchProblem",
         "title": "CPH: Fetch Problem"
+      },
+      {
+        "command": "cph-for-leetcode.runTestCases",
+        "title": "CPH: Run Test Cases"
       }
     ],
     "viewsContainers": {
