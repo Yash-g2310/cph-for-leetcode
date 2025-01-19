@@ -1,0 +1,78 @@
+{
+  "name": "cph-for-leetcode",
+  "displayName": "CPH for LeetCode",
+  "description": "Competitive Programming Helper for LeetCode.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:cph-for-leetcode.helloWorld",
+    "onCommand:cph-for-leetcode.fetchProblem",
+    "onView:testCaseView",
+    "onViewContainer:testCaseViewContainer"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cph-for-leetcode.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "cph-for-leetcode.fetchProblem",
+        "title": "CPH: Fetch Problem"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "testCaseViewContainer",
+          "title": "Test Cases",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "testCaseViewContainer": [
+        {
+          "type": "webview",
+          "id": "testCaseView",
+          "name": "Test Cases"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.96.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.16.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "leetcode-query": "^1.2.3",
+    "node-cache": "^5.1.2",
+    "node-fetch": "^3.3.2",
+    "puppeteer": "^24.1.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

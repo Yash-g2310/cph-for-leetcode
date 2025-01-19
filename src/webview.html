@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Cases</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 10px;
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+        }
+        .test-case {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 8px;
+            background: var(--vscode-editorWidget-background);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .test-case .header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--vscode-editor-foreground);
+        }
+        .test-case .inputHeader,
+        .test-case .outputHeader {
+            margin-bottom: 5px;
+            color: var(--vscode-editor-foreground);
+        }
+        .test-case .input,
+        .test-case .output {
+            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 4px;
+            background: var(--vscode-editorWidget-background);
+        }
+        .test-case .input-variable {
+            display: flex;
+            max-width: fit-content;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .test-case .input-variable span {
+            margin-right: 10px;
+            font-weight: bold;
+            color: var(--vscode-editor-foreground);
+        }
+        .test-case .input-variable textarea {
+            flex: 1;
+            padding: 5px;
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 4px;
+            width: 100%;
+            background: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+        }
+        .test-case .output-value {
+            padding: 5px;
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 4px;
+            background: var(--vscode-editorWidget-background);
+            width: 100%;
+            max-width: 14rem;
+            color: var(--vscode-editor-foreground);
+        }
+        .form {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 8px;
+            background: var(--vscode-editorWidget-background);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .form input {
+            margin-bottom: 10px;
+            display: block;
+            width: 95%;
+            padding: 8px;
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 4px;
+            background: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+        }
+        .form button {
+            padding: 10px 15px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .form button:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+    </style>
+</head>
+<body>
+    <h3>Test Cases for File</h3>
+    <div id="testCases"></div>
+    <div class="form" id="addTestCaseForm">
+        <h4>Add New Test Case</h4>
+        <button onclick="addTestCase()">Add Test Case</button>
+    </div>
+    <script nonce="{{nonce}}">
+        const vscode = acquireVsCodeApi();
+        let testCases = [];
+        function renderTestCases() {
+            const container = document.getElementById("testCases");
+            container.innerHTML = "";
+            if (testCases.length === 0) {
+                container.innerHTML = "<p>No test cases added yet.</p>";
+                return;
+            }
+            testCases.forEach((testCase, index) => {
+                const div = document.createElement("div");
+                div.className = "test-case";
+                const header = document.createElement("p");
+                header.className = "header";
+                header.innerText = "Test Case " + (index + 1);
+                div.appendChild(header);
+                const inputHeader = document.createElement("p");
+                inputHeader.className = "inputHeader";
+                inputHeader.innerText = "Input";
+                div.appendChild(inputHeader);
+                Object.entries(testCase.input).forEach((entry) => {
+                    const inputDiv = document.createElement("div");
+                    inputDiv.className = "input-variable";
+                    const variable = document.createElement("span");
+                    variable.innerText = entry[0] + ": ";
+                    inputDiv.appendChild(variable);
+                    const value = document.createElement("textarea");
+                    value.value = entry[1];
+                    inputDiv.appendChild(value);
+                    div.appendChild(inputDiv);
+                });
+                const outputHeader = document.createElement("p");
+                outputHeader.className = "outputHeader";
+                outputHeader.innerText = "Expected Output: ";
+                div.appendChild(outputHeader);
+                const output = document.createElement("textarea");
+                output.className = "output-value";
+                output.value = testCase.output;
+                div.appendChild(output);
+                container.appendChild(div);
+            });
+        }
+        function addTestCase() {
+            const testCase = {};
+            testCase["input"] = {};
+            testCase["output"] = "";
+            if (testCases.length !== 0) {
+                Object.entries(testCases[0].input).forEach((entry) => {
+                    const variable = entry[0];
+                    testCase.input[variable] = '';
+                });
+            }
+            testCases.push(testCase);
+            renderTestCases();
+        }
+        window.addEventListener("message", (event) => {
+            const message = event.data;
+            if (message.command === "updateTestCases") {
+                testCases = message.testCases || [];
+                renderTestCases();
+            }
+        });
+        renderTestCases();
+    </script>
+</body>
+</html>
