@@ -26,11 +26,13 @@
             color: var(--vscode-editor-foreground);
         }
         .test-case .inputHeader,
+        .test-case .expectedOutputHeader,
         .test-case .outputHeader {
             margin-bottom: 5px;
             color: var(--vscode-editor-foreground);
         }
         .test-case .input,
+        .test-case .expectedOutput,
         .test-case .output {
             margin-bottom: 10px;
             padding: 8px;
@@ -58,14 +60,20 @@
             background: var(--vscode-editor-background);
             color: var(--vscode-editor-foreground);
         }
+        .test-case .expectedOutput-value,
         .test-case .output-value {
             padding: 5px;
             border: 1px solid var(--vscode-editorWidget-border);
             border-radius: 4px;
             background: var(--vscode-editorWidget-background);
             width: 100%;
-            max-width: 14rem;
+            max-width: 13rem;
             color: var(--vscode-editor-foreground);
+        }
+        .test-case .output-value {
+            background: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+            resize: none;
         }
         .form {
             margin-top: 20px;
@@ -86,6 +94,7 @@
             color: var(--vscode-editor-foreground);
         }
         .form button {
+            margin-bottom: 10px;
             padding: 10px 15px;
             background: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
@@ -104,6 +113,7 @@
     <div class="form" id="addTestCaseForm">
         <h4>Add New Test Case</h4>
         <button onclick="addTestCase()">Add Test Case</button>
+        <button onclick="runTestCases()">Run Test Cases</button>
     </div>
     <script nonce="{{nonce}}">
         const vscode = acquireVsCodeApi();
@@ -137,14 +147,26 @@
                     inputDiv.appendChild(value);
                     div.appendChild(inputDiv);
                 });
+                const expectedOutputHeader = document.createElement("p");
+                expectedOutputHeader.className = "expectedOutputHeader";
+                expectedOutputHeader.innerText = "Expected Output: ";
+                div.appendChild(expectedOutputHeader);
+                const expectedOutput = document.createElement("textarea");
+                expectedOutput.className = "expectedOutput-value";
+                expectedOutput.value = testCase.output || "";
+                div.appendChild(expectedOutput);
+                
                 const outputHeader = document.createElement("p");
                 outputHeader.className = "outputHeader";
-                outputHeader.innerText = "Expected Output: ";
+                outputHeader.innerText = "Output: ";
                 div.appendChild(outputHeader);
                 const output = document.createElement("textarea");
                 output.className = "output-value";
-                output.value = testCase.output;
+                output.value = "";
+                output.readOnly = true;
+                output.value = "";
                 div.appendChild(output);
+
                 container.appendChild(div);
             });
         }
@@ -161,13 +183,31 @@
             testCases.push(testCase);
             renderTestCases();
         }
+
+        function runTestCases() {
+            vscode.postMessage({
+                command: "runTestCases",
+                testCases: testCases
+            });
+        }
+
         window.addEventListener("message", (event) => {
             const message = event.data;
             if (message.command === "updateTestCases") {
                 testCases = message.testCases || [];
                 renderTestCases();
+            } else if (message.command === "testResults") {
+                updateTestResults(message.results);
             }
         });
+
+        function updateTestResults(results) {
+            const outputDivs = document.getElementsByClassName("output-value");
+            testCases.forEach((testCase, index) => {
+                outputDivs[index].value = results[index];
+            });
+        }
+
         renderTestCases();
     </script>
 </body>

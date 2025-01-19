@@ -105,6 +105,64 @@ class TestCaseViewProvider {
         return text;
     }
 
+    async _runTestCases() {
+        if (!this._activeFile) {
+            vscode.window.showErrorMessage("No active file selected.");
+            return;
+        }
+
+        const testCases = this._testCasesStorage[this._activeFile] || [];
+        const results = [];
+
+        for (const testCase of testCases) {
+            const result = await this._runTestCase(testCase);
+            results.push(result);
+        }
+
+        this._webviewView.webview.postMessage({ command: "testResults", results });
+    }
+
+    /**
+     * Run a single test case.
+     * @param {Object} testCase
+     * @returns {Promise<Object>}
+     */
+    async _runTestCase(testCase) {
+        const terminal = vscode.window.createTerminal(`Test Case Runner`);
+        const fileExtension = path.extname(this._activeFile).substring(1);
+
+        let runCommand;
+        switch (fileExtension) {
+            case 'js':
+                runCommand = `node ${this._activeFile}`;
+                break;
+            case 'py':
+                runCommand = `python ${this._activeFile}`;
+                break;
+            case 'cpp':
+                runCommand = `g++ ${this._activeFile} -o ${this._activeFile}.out && ${this._activeFile}.out`;
+                break;
+            case 'java':
+                runCommand = `javac ${this._activeFile} && java ${path.basename(this._activeFile, '.java')}`;
+                break;
+            // Add more cases for other languages as needed
+            default:
+                vscode.window.showErrorMessage(`Unsupported file extension: ${fileExtension}`);
+                return { input: testCase.input, output: "Unsupported file extension" };
+        }
+
+        terminal.sendText(runCommand);
+        terminal.show();
+
+        return new Promise((resolve) => {
+            const disposable = vscode.window.onDidCloseTerminal((closedTerminal) => {
+                if (closedTerminal === terminal) {
+                    resolve({ input: testCase.input, output: "Test case output" });
+                    disposable.dispose();
+                }
+            });
+        });
+    }
 }
 
 module.exports = { TestCaseViewProvider };
