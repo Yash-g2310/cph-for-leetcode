@@ -175,6 +175,7 @@
     </div>
     <script nonce="{{nonce}}">
         const vscode = acquireVsCodeApi();
+
         console.log("Loading webview script");
         const rawTestCases = '{{testCases}}';
         console.log('rawTestCases', rawTestCases);
@@ -200,6 +201,55 @@
                 updateTestResults(message.results);
             }
         });
+
+        function getInputFormat(input,types){
+            console.log("in getinputFormat");
+            console.log(types);
+            let ind=0;
+            let inputformat = '';
+            for(const key in input){
+                let i=0;
+                let ipt=input[key];
+                while(ipt[0]=='['){
+                    i++;
+                    ipt = ipt.substring(1,ipt.length-1);
+                }
+                if(i === 1){
+                    ipt = input[key].substring(1,input[key].length-1);
+                    let arr = ipt.split(',');
+                    inputformat+=`${arr.length}\n`;
+                    inputformat+=arr.join(' ')+'\n';
+                }
+                else if (i === 2){
+                    const type = types[ind];
+                    console.log("type: ",type,typeof(type));
+                    console.log("lowercase: ",type.toLowerCase());
+                    ipt = input[key].substring(1,input[key].length-1);
+                    let arr = ipt.split('],[');
+                    if (type.toLowerCase().includes('matrix') || type.toLowerCase().includes('board')){
+                        console.log("--------------a");
+                        inputformat+=`${arr.length} ${arr[0].split(',').length}\n`;
+                    }
+                    else if(type.toLowerCase().includes('tree') || type.toLowerCase().includes('graph')){
+                        console.log("--------------b");
+                        inputformat+=`${arr.length}\n`;
+                    }
+                    for(let j=0;j<arr.length;j++){
+                        console.log("--------------c");
+                        let temp = arr[j].split(',');
+                        temp.forEach((ele, index) => {
+                            temp[index] = ele.replace('[','').replace(']','');
+                        });
+                        inputformat+=temp.join(' ')+'\n';
+                    }
+                }
+                else{
+                    inputformat+=input[key] +'\n';
+                }
+                ind++;
+            }
+            return inputformat
+        }
 
         function renderTestCases() {
             console.log("Rendering test cases");
@@ -248,8 +298,19 @@
                     const value = document.createElement("textarea");
                     value.value = entry[1];
                     value.addEventListener("input", (event) => {
+                        console.log("__________________input event", event);
+                        console.log("__________________input event", event.target.value);
                         testCase.input[entry[0]] = event.target.value;
+                        testCase.inputFormat = getInputFormat(testCase.input,testCase.types);
+                        console.log("__________________input event", testCase.inputFormat);
+                        console.log("__________________input event changig text area");
+                        const inputFormatText = div.querySelector('pre');
+                        if (inputFormatText) {
+                            inputFormatText.innerText = testCase.inputFormat;
+                        }
+                        console.log("__________________input event done changig text area");
                         saveTestCases();
+                        
                     });
 
                     inputDiv.appendChild(value);
@@ -264,6 +325,7 @@
                 expectedOutput.value = testCase.output || "";
 
                 expectedOutput.addEventListener("input", (event) => {
+                    console.log("__________________output event", event);
                     testCase.output = expectedOutput.value;
                     saveTestCases();
                 });
@@ -287,7 +349,7 @@
         inputFormatButton.className = "input-format-button";
         const inputFormatText = document.createElement("pre");
         inputFormatText.className = "hidden";
-        inputFormatText.innerText = '3 4\n1 3 5 7\n10 11 16 20\n23 30 34 60\n3\n';
+        inputFormatText.innerText = testCase.inputFormat || '';
 
         inputFormatButton.addEventListener("click", () => {
             if (inputFormatText.classList.contains("hidden")) {
@@ -310,6 +372,7 @@
             const testCase = {};
             testCase["input"] = {};
             testCase["output"] = "";
+            testCase["inputFormat"] = "";
             if (testCases.length !== 0) {
                 Object.entries(testCases[0].input).forEach((entry) => {
                     const variable = entry[0];
@@ -322,6 +385,7 @@
         }
 
         function saveTestCases() {
+            console.log("Saving test cases");
             vscode.postMessage({
                 command: "saveTestCases",
                 testCases: testCases

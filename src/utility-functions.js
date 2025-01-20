@@ -133,6 +133,7 @@ function extractTestCases(htmlString,metaData) {
             input: input,
             output: output,
             inputFormat: FinalInputFormat[index],
+            types: types
         });
     });
 
