@@ -19,10 +19,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "cph-for-leetcode.helloWorld",
-        "title": "Hello World"
-      },
-      {
         "command": "cph-for-leetcode.fetchProblem",
         "title": "CPH: Fetch Problem"
       },
@@ -64,14 +60,11 @@
     "eslint": "^9.16.0"
   },
   "dependencies": {
-    "axios": "^1.7.9",
     "dotenv": "^16.4.7",
     "leetcode-query": "^1.2.3",
     "node-cache": "^5.1.2",
     "node-fetch": "^3.3.2",
-    "puppeteer": "^24.1.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra": "^3.3.6"
   },
   "directories": {
     "test": "test"

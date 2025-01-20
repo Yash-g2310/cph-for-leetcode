@@ -1,6 +1,8 @@
 const vscode = require("vscode");
 const path = require('path');
 
+
+//  function to select the runcommand, will be executed in poweshell
 /**
  * @param {string} activeFile - Name of the active file.
  * @param {string} lang - Language of the active file.
@@ -49,6 +51,8 @@ const possibleCommands = (activeFile, lang)=> {
     }
 };
 
+
+// function to select the comment template for given language
 /**
  * 
  * @param {string} lang - Language of the code snippet.
@@ -81,6 +85,8 @@ const getCommentTemplate = (lang) => {
     return commentTemplates[lang] || `// ${comment}`;
 };
 
+
+// function to get the file extension for the given language
 /**
  * @param {string} language - Language of the code snippet.
  * @returns {string} File extension for the given language

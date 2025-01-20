@@ -175,36 +175,29 @@
     </div>
     <script nonce="{{nonce}}">
         const vscode = acquireVsCodeApi();
-
-        console.log("Loading webview script");
         const rawTestCases = '{{testCases}}';
-        console.log('rawTestCases', rawTestCases);
         let testCases;
+
         try {
             testCases = JSON.parse(rawTestCases);
             console.log('testCases from script', testCases);
         } catch (e) {
             console.error('Error parsing testCases:', e);
         }
-        console.log('testCases from script', testCases);
 
-        console.log("Setting up message listener");
         window.addEventListener("message", (event) => {
             const message = event.data;
             if (message.command === "updateTestCases") {
-                console.log("Updating test cases in webview");
                 testCases = message.testCases || [];
                 renderTestCases();
             }
             else if (message.command === "testResults") {
-                console.log("Processing test results in webview:", message.results);
                 updateTestResults(message.results);
             }
         });
 
+        // i had to redeclare this function because the method to get it from utility function don't click
         function getInputFormat(input,types){
-            console.log("in getinputFormat");
-            console.log(types);
             let ind=0;
             let inputformat = '';
             for(const key in input){
@@ -222,20 +215,15 @@
                 }
                 else if (i === 2){
                     const type = types[ind];
-                    console.log("type: ",type,typeof(type));
-                    console.log("lowercase: ",type.toLowerCase());
                     ipt = input[key].substring(1,input[key].length-1);
                     let arr = ipt.split('],[');
                     if (type.toLowerCase().includes('matrix') || type.toLowerCase().includes('board')){
-                        console.log("--------------a");
                         inputformat+=`${arr.length} ${arr[0].split(',').length}\n`;
                     }
                     else if(type.toLowerCase().includes('tree') || type.toLowerCase().includes('graph')){
-                        console.log("--------------b");
                         inputformat+=`${arr.length}\n`;
                     }
                     for(let j=0;j<arr.length;j++){
-                        console.log("--------------c");
                         let temp = arr[j].split(',');
                         temp.forEach((ele, index) => {
                             temp[index] = ele.replace('[','').replace(']','');
@@ -251,9 +239,8 @@
             return inputformat
         }
 
+        // rendering test cases
         function renderTestCases() {
-            console.log("Rendering test cases");
-            console.log('testCases', testCases);
             const container = document.getElementById("testCases");
             container.innerHTML = "";
             if (testCases.length === 0) {
@@ -298,24 +285,19 @@
                     const value = document.createElement("textarea");
                     value.value = entry[1];
                     value.addEventListener("input", (event) => {
-                        console.log("__________________input event", event);
-                        console.log("__________________input event", event.target.value);
                         testCase.input[entry[0]] = event.target.value;
                         testCase.inputFormat = getInputFormat(testCase.input,testCase.types);
-                        console.log("__________________input event", testCase.inputFormat);
-                        console.log("__________________input event changig text area");
                         const inputFormatText = div.querySelector('pre');
                         if (inputFormatText) {
                             inputFormatText.innerText = testCase.inputFormat;
                         }
-                        console.log("__________________input event done changig text area");
                         saveTestCases();
-                        
                     });
 
                     inputDiv.appendChild(value);
                     div.appendChild(inputDiv);
                 });
+
                 const expectedOutputHeader = document.createElement("p");
                 expectedOutputHeader.className = "expectedOutputHeader";
                 expectedOutputHeader.innerText = "Expected Output: ";
@@ -325,7 +307,6 @@
                 expectedOutput.value = testCase.output || "";
 
                 expectedOutput.addEventListener("input", (event) => {
-                    console.log("__________________output event", event);
                     testCase.output = expectedOutput.value;
                     saveTestCases();
                 });
@@ -343,36 +324,38 @@
                 output.value = "";
                 div.appendChild(output);
 
-                /// Add input format button
-        const inputFormatButton = document.createElement("button");
-        inputFormatButton.innerText = "Show Input Format";
-        inputFormatButton.className = "input-format-button";
-        const inputFormatText = document.createElement("pre");
-        inputFormatText.className = "hidden";
-        inputFormatText.innerText = testCase.inputFormat || '';
-
-        inputFormatButton.addEventListener("click", () => {
-            if (inputFormatText.classList.contains("hidden")) {
-                inputFormatText.classList.remove("hidden");
-                inputFormatButton.innerText = "Hide Input Format";
-            } else {
-                inputFormatText.classList.add("hidden");
+        
+                const inputFormatButton = document.createElement("button");
                 inputFormatButton.innerText = "Show Input Format";
-            }
-        });
+                inputFormatButton.className = "input-format-button";
+                const inputFormatText = document.createElement("pre");
+                inputFormatText.className = "hidden";
+                inputFormatText.innerText = testCase.inputFormat || '';
 
-        div.appendChild(inputFormatText);
-        div.appendChild(inputFormatButton);
+                inputFormatButton.addEventListener("click", () => {
+                    if (inputFormatText.classList.contains("hidden")) {
+                        inputFormatText.classList.remove("hidden");
+                        inputFormatButton.innerText = "Hide Input Format";
+                    } else {
+                        inputFormatText.classList.add("hidden");
+                        inputFormatButton.innerText = "Show Input Format";
+                    }
+                });
+            
+                div.appendChild(inputFormatText);
+                div.appendChild(inputFormatButton);
 
                 container.appendChild(div);
             });
         }
 
+        // add test case -> save -> rerender
         function addTestCase() {
             const testCase = {};
             testCase["input"] = {};
             testCase["output"] = "";
             testCase["inputFormat"] = "";
+
             if (testCases.length !== 0) {
                 Object.entries(testCases[0].input).forEach((entry) => {
                     const variable = entry[0];
@@ -385,7 +368,6 @@
         }
 
         function saveTestCases() {
-            console.log("Saving test cases");
             vscode.postMessage({
                 command: "saveTestCases",
                 testCases: testCases
@@ -399,17 +381,15 @@
             });
         }
 
+        // when file run, we get output, rerender view
         function updateTestResults(results) {
             const outputDivs = document.getElementsByClassName("output-value");
-            console.log('outputDivs', outputDivs);
             Array.from(outputDivs).forEach((output, index) => {
                 if (results[index] && results[index].output) {
                     output.value = results[index].output;
                 }
             });
         }
-
-
 
         renderTestCases();
     </script>

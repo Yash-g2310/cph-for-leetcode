@@ -5,15 +5,15 @@ const { exec } = require("child_process");
 const { possibleCommands } = require("./langSwitch");
 
 class TestCaseViewProvider {
+
+    // globlal state maanagement done
     /**
      * @param {vscode.Uri} extensionUri
      * @param {vscode.Memento} globalState
      */
     constructor(extensionUri, globalState) {
-        vscode.window.showInformationMessage("Creating test case view provider...");
         this._extensionUri = extensionUri;
         this._globalState = globalState;
-
         this._storageKey = "cph-for-leetcode.testCaseStorage.v1";
         this._testCasesStorage = this._globalState.get(this._storageKey, {});
         this._activeFile = null;
@@ -23,46 +23,33 @@ class TestCaseViewProvider {
         }
     }
 
+    // setting the active file and then updating (rerendering of the view)
     /**
-     * Set the currently active file.
      * @param {string} fileName
      */
     setActiveFile(fileName) {
-        console.log(`Setting active file to ${fileName}`);
         this._activeFile = fileName;
         this._updateView();
     }
 
-    /**
-     * Save test cases for the currently active file.
-     * @param {string} fileName
-     */
-    saveTestCasesForFile(fileName) {
-        console.log(`Saving test cases for ${fileName}`);
+    // saving the test cases globally
+    saveTestCasesForFile() {
         if (this._activeFile && this._testCasesStorage[this._activeFile]) {
             this._globalState.update(this._storageKey, this._testCasesStorage);
-            console.log(`Test cases saved for ${this._activeFile}`);
-            console.log(`Test cases  ${this._testCasesStorage[this._activeFile]}`);
         }
     }
 
+    // updating the webview view (rerender it)
     /**
      * Update the webview view with the test cases for the active file.
      */
     _updateView() {
-        console.log(
-            `Updating test cases for ${this._activeFile} before ${this._webviewView}, ${this._activeFile}`
-        );
         if (this._webviewView && this._activeFile) {
             const testCases = this._testCasesStorage[this._activeFile] || [];
-            console.log(`>>>>>>>>>>> ${testCases}`);
             this._webviewView.webview.postMessage({
                 command: "updateTestCases",
                 testCases,
             });
-            console.log(
-                `Updating test cases for ${this._activeFile} after ${this._webviewView}, ${this._activeFile}`
-            );
         }
     }
 
