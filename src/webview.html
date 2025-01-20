@@ -137,6 +137,30 @@
         .delete-button:hover {
             background: var(--vscode-button-hoverBackground);
         }
+
+        .input-format-button {
+            margin-top: 4px;
+            padding: 8px 12px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 12px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .input-format-button:hover {
+            background: var(--vscode-button-hoverBackground);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 
@@ -146,6 +170,7 @@
     <div class="form" id="addTestCaseForm">
         <h4>Add New Test Case</h4>
         <button onclick="addTestCase()">Add Test Case</button>
+        <h4>Run Test Cases</h4>
         <button onclick="runTestCases()">Run Test Cases</button>
     </div>
     <script nonce="{{nonce}}">
@@ -255,6 +280,27 @@
                 output.readOnly = true;
                 output.value = "";
                 div.appendChild(output);
+
+                /// Add input format button
+        const inputFormatButton = document.createElement("button");
+        inputFormatButton.innerText = "Show Input Format";
+        inputFormatButton.className = "input-format-button";
+        const inputFormatText = document.createElement("pre");
+        inputFormatText.className = "hidden";
+        inputFormatText.innerText = '3 4\n1 3 5 7\n10 11 16 20\n23 30 34 60\n3\n';
+
+        inputFormatButton.addEventListener("click", () => {
+            if (inputFormatText.classList.contains("hidden")) {
+                inputFormatText.classList.remove("hidden");
+                inputFormatButton.innerText = "Hide Input Format";
+            } else {
+                inputFormatText.classList.add("hidden");
+                inputFormatButton.innerText = "Show Input Format";
+            }
+        });
+
+        div.appendChild(inputFormatText);
+        div.appendChild(inputFormatButton);
 
                 container.appendChild(div);
             });

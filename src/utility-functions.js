@@ -1,6 +1,7 @@
 const vscode = require("vscode");
 const fs = require('fs');
 const path = require('path');
+const {getCommentTemplate} = require('./langSwitch');
 
 /**
  * @param {Array} codeSnippets - Array of code snippets.
@@ -53,6 +54,8 @@ async function createOpenFile(filename, fileExtension, content) {
     // Create a new file in the selected folder
     filePath = path.join(folderPath, `${filename}.${fileExtension}`);
     const fileUri = vscode.Uri.file(filePath);
+    const commentTemplate = getCommentTemplate(fileExtension);
+
     try{
         await vscode.workspace.fs.stat(fileUri);
         const document = await vscode.workspace.openTextDocument(fileUri);
@@ -61,7 +64,7 @@ async function createOpenFile(filename, fileExtension, content) {
     // eslint-disable-next-line no-unused-vars
     } catch (error) {
         const encoder = new TextEncoder(); // Encoder to convert text to bytes
-        const data = encoder.encode(content);
+        const data = encoder.encode(commentTemplate + content);
         await vscode.workspace.fs.writeFile(fileUri, data);
         const document = await vscode.workspace.openTextDocument(fileUri);
         await vscode.window.showTextDocument(document);
@@ -81,9 +84,10 @@ async function createOpenFile(filename, fileExtension, content) {
 
 /**
  * @param {string} htmlString - Test cases to write to the file.
+ * @param {string} metaData - Meta data of the problem.
  * @returns {Array} Array of test case objects.
  */
-function extractTestCases(htmlString) {
+function extractTestCases(htmlString,metaData) {
     const inputRegex = /<strong>Input:<\/strong>(.*?)\n/g;
     const outputRegex = /<strong>Output:<\/strong>(.*?)\n/g;
     let match;
@@ -99,6 +103,9 @@ function extractTestCases(htmlString) {
 
     const FinalInputs=[];
     const FinalOutputs=[];
+    const FinalInputFormat =[];
+    const types = getTests(metaData);
+
     rawInputs.forEach((input) => {
         const inputPairs = input.substring(24,input.length-1).split(', ').map(pair => pair.trim());
         const inputObj = {};
@@ -112,67 +119,100 @@ function extractTestCases(htmlString) {
         const out = output.substring(25,output.length-1);
         FinalOutputs.push(out);
     });
+    
+    FinalInputs.forEach((input) => {
+        const inputFormat = getInputformat(input,types);
+        FinalInputFormat.push(inputFormat);
+
+    })
+
     const testCaseObjects = [];
     FinalInputs.forEach((input, index) => {
         const output = FinalOutputs[index];
         testCaseObjects.push({
             input: input,
-            output: output
+            output: output,
+            inputFormat: FinalInputFormat[index],
         });
     });
+
+    console.log("+++++++++++++++++++++++++++++++++++++Test case objects: ");
+    console.log(testCaseObjects);
     return testCaseObjects;
 }
 
 /**
- * @param {string} language - Language of the code snippet.
- * @returns {string} File extension for the given language
+ * 
+ * @param {*} input - input object
+ * @param {Array} types - type of input
+ * @returns 
  */
-function getExtension(language){
-    switch (language) {
-        case 'C++':
-            return 'cpp';
-        case 'Java':
-            return 'java';
-        case 'Python':
-        case 'Python3':
-            return 'py';
-        case 'C':
-            return 'c';
-        case 'C#':
-            return 'cs';
-        case 'JavaScript':
-        case 'Node.js':
-            return 'js';
-        case 'TypeScript':
-            return 'ts';
-        case 'PHP':
-            return 'php';
-        case 'Swift':
-            return 'swift';
-        case 'Kotlin':
-            return 'kt';
-        case 'Dart':
-            return 'dart';
-        case 'Go':
-            return 'go';
-        case 'Ruby':
-            return 'rb';
-        case 'Scala':
-            return 'scala';
-        case 'Rust':
-            return 'rs';
-        case 'Racket':
-            return 'rkt';
-        case 'Erlang':
-            return 'erl';
-        case 'Elixir':
-            return 'ex';
-        default:
-            return 'txt';
+function getInputformat(input,types){
+    console.log("in getinputformat");
+    console.log(types);
+    let ind=0;
+    let inputformat = '';
+    for(const key in input){
+        let i=0;
+        let ipt=input[key];
+        while(ipt[0]=='['){
+            i++;
+            ipt = ipt.substring(1,ipt.length-1);
+        }
+        if(i === 1){
+            ipt = input[key].substring(1,input[key].length-1);
+            let arr = ipt.split(',');
+            inputformat+=`${arr.length}\n`;
+            inputformat+=arr.join(' ')+'\n';
+        }
+        else if (i === 2){
+            const type = types[ind];
+            console.log("type: ",type,typeof(type));
+            console.log("lowercase: ",type.toLowerCase());
+            ipt = input[key].substring(1,input[key].length-1);
+            let arr = ipt.split('],[');
+            if (type.toLowerCase().includes('matrix') || type.toLowerCase().includes('board')){
+                console.log("--------------a");
+                inputformat+=`${arr.length} ${arr[0].split(',').length}\n`;
+            }
+            else if(type.toLowerCase().includes('tree') || type.toLowerCase().includes('graph')){
+                console.log("--------------b");
+                inputformat+=`${arr.length}\n`;
+            }
+            for(let j=0;j<arr.length;j++){
+                console.log("--------------c");
+                let temp = arr[j].split(',');
+                temp.forEach((ele, index) => {
+                    temp[index] = ele.replace('[','').replace(']','');
+                });
+                inputformat+=temp.join(' ')+'\n';
+            }
+        }
+        else{
+            inputformat+=input[key] +'\n';
+        }
+        ind++;
     }
+    return inputformat
+}
+
+/**
+ * @param {string} metaData - Meta data of the problem.
+ * @returns {Array} Array of test case types.
+ */
+function getTests(metaData){
+    // Parse JSON string to object
+    const metaDataObj = JSON.parse(metaData);
+    console.log(metaDataObj);
+
+    // Extract parameter types
+    const paramTypes = metaDataObj.params.map(param => param.name);
+    console.log("-paramtypes>> ",paramTypes);
+
+    return paramTypes;
+    
 }
 
 
 
-
-module.exports ={ getLanguages, createOpenFile,extractTestCases,getExtension};
+module.exports ={ getLanguages, createOpenFile,extractTestCases};

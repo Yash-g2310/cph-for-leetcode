@@ -1,6 +1,7 @@
 const vscode = require("vscode");
 const { LeetCode } = require("leetcode-query"); // Use default import
-const { getLanguages, createOpenFile, extractTestCases, getExtension } = require("./utility-functions");
+const { getLanguages, createOpenFile, extractTestCases } = require("./utility-functions");
+const { getExtension } = require("./langSwitch");
 // const { createTestCaseTab } = require("./webview");
 const { TestCaseViewProvider } = require("./testCaseViewProvider");
 
@@ -116,7 +117,7 @@ function activate(context) {
 					fileExtension,
 					code
 				);
-				let testCases = extractTestCases(problem["content"]);
+				let testCases = extractTestCases(problem["content"],problem['metaData']);
 				console.log("Test cases from extension: ", testCases);
 				console.log("---------", testCaseViewProvider._testCasesStorage[filePath]);
 

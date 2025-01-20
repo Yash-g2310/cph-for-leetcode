@@ -2,6 +2,8 @@ const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
 const { exec } = require('child_process');
+const {possibleCommands} = require('./langSwitch');
+
 class TestCaseViewProvider {
     /**
      * @param {vscode.Uri} extensionUri
@@ -167,34 +169,13 @@ class TestCaseViewProvider {
         console.log(`input: ${testCase.input}`);
         console.log(`output: ${testCase.output}`);
     
-        // Mapping file extensions to run commands
-        const commands = {
-            js: `node ${this._activeFile}`,
-            py: `python ${this._activeFile}`,
-            cpp: `g++ "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`,
-            c: `gcc "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`,
-            java: `javac "${this._activeFile}" && java -cp "${path.dirname(this._activeFile)}" "${path.basename(this._activeFile, '.java')}"`,
-            cs: `csc "${this._activeFile}" && "${path.basename(this._activeFile, '.cs')}.exe"`,
-            ts: `tsc "${this._activeFile}" && node "${this._activeFile.replace('.ts', '.js')}"`,
-            php: `php "${this._activeFile}"`,
-            swift: `swift "${this._activeFile}"`,
-            kt: `kotlinc "${this._activeFile}" -include-runtime -d "${this._activeFile}.jar" && java -jar "${this._activeFile}.jar"`,
-            dart: `dart "${this._activeFile}"`,
-            go: `go run "${this._activeFile}"`,
-            rb: `ruby "${this._activeFile}"`,
-            scala: `scala "${this._activeFile}"`,
-            rs: `rustc "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`,
-            rkt: `racket "${this._activeFile}"`,
-            erl: `erl -noshell -s "${path.basename(this._activeFile, '.erl')}" main -s init stop`,
-            ex: `elixir "${this._activeFile}"`
-        };
+        const runCommand = possibleCommands(this._activeFile, fileExtension);
     
-        if (!commands[fileExtension]) {
+        if (!runCommand || runCommand === '') {
             vscode.window.showErrorMessage(`Unsupported file extension: ${fileExtension}`);
             return { input: testCase.input, output: "Unsupported file extension" };
         }
-    
-        const runCommand = commands[fileExtension];
+
         console.log(`Running command: ${runCommand}`);
     
         return new Promise((resolve) => {
