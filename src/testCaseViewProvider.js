@@ -1,6 +1,7 @@
 const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
+const { exec } = require('child_process');
 class TestCaseViewProvider {
     /**
      * @param {vscode.Uri} extensionUri
@@ -10,8 +11,14 @@ class TestCaseViewProvider {
         vscode.window.showInformationMessage("Creating test case view provider...");
         this._extensionUri = extensionUri;
         this._globalState = globalState;
-        this._testCasesStorage = this._globalState.get('testCaseStorage',{});
+
+        this._storageKey = 'cph-for-leetcode.testCaseStorage.v1';
+        this._testCasesStorage = this._globalState.get(this._storageKey, {});
         this._activeFile = null;
+
+        if (vscode.window.activeTextEditor) {
+            this._activeFile = vscode.window.activeTextEditor.document.fileName;
+        }
     }
 
     /**
@@ -19,7 +26,7 @@ class TestCaseViewProvider {
      * @param {string} fileName
      */
     setActiveFile(fileName) {
-        vscode.window.showInformationMessage(`Setting active file to ${fileName}`);
+        console.log(`Setting active file to ${fileName}`);
         this._activeFile = fileName;
         this._updateView();
     }
@@ -29,9 +36,11 @@ class TestCaseViewProvider {
      * @param {string} fileName
      */
     saveTestCasesForFile(fileName) {
+        console.log(`Saving test cases for ${fileName}`);
         if (this._activeFile && this._testCasesStorage[this._activeFile]) {
-            vscode.window.showInformationMessage(`Test cases saved for ${fileName}`);
-            this._globalState.update('testCaseStorage', this._testCasesStorage);
+            this._globalState.update(this._storageKey, this._testCasesStorage);
+            console.log(`Test cases saved for ${this._activeFile}`);  
+            console.log(`Test cases  ${this._testCasesStorage[this._activeFile]}`);          
         }
     }
 
@@ -39,11 +48,12 @@ class TestCaseViewProvider {
      * Update the webview view with the test cases for the active file.
      */
     _updateView() {
-        vscode.window.showInformationMessage(`Updating test cases for ${this._activeFile} before ${this._webviewView}, ${this._activeFile}`);
+        console.log(`Updating test cases for ${this._activeFile} before ${this._webviewView}, ${this._activeFile}`);
         if (this._webviewView && this._activeFile) {
             const testCases = this._testCasesStorage[this._activeFile] || [];
-            vscode.window.showInformationMessage(`Updating test cases for ${testCases}`);
+            console.log(`>>>>>>>>>>> ${testCases}`);
             this._webviewView.webview.postMessage({ command: "updateTestCases", testCases });
+            console.log(`Updating test cases for ${this._activeFile} after ${this._webviewView}, ${this._activeFile}`);
         }
     }
 
@@ -52,15 +62,16 @@ class TestCaseViewProvider {
      * @param {vscode.WebviewView} webviewView
      */
     resolveWebviewView(webviewView) {
-        vscode.window.showInformationMessage("Resolving webview view...");
+        console.log(`Resolving webview view`);
         this._webviewView = webviewView;
 
         // Set up the HTML content for the webview
         webviewView.webview.options = { enableScripts: true };
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        console.log(`html content for webview ${webviewView.webview.html}`);
 
         // Handle messages from the webview
-        webviewView.webview.onDidReceiveMessage((message) => {
+        webviewView.webview.onDidReceiveMessage(async(message) => {
             switch (message.command) {
                 case "addTestCase":
                     if (this._activeFile) {
@@ -74,17 +85,19 @@ class TestCaseViewProvider {
                 case "saveTestCases":
                     if (this._activeFile) {
                         this._testCasesStorage[this._activeFile] = message.testCases;
-                        this._globalState.update('testCaseStorage', this._testCasesStorage);
+                        this._globalState.update(this._storageKey, this._testCasesStorage);
                     }
                     break;
                 case "runTestCases":
-                    this._runTestCases();
+                    await this._runTestCases();
                     break;
             }
         });
 
         // Initial update
-        this._updateView();
+        if (this._activeFile) {
+            this._updateView();
+        }
     }
     
 
@@ -95,9 +108,12 @@ class TestCaseViewProvider {
      */
         _getHtmlForWebview(webview) {
             const nonce = this._getNonce();
-            const htmlPath = path.join(this._extensionUri.fsPath, 'src','webview.html');
+            const testCases = JSON.stringify(this._testCasesStorage[this._activeFile] || []);
+            console.log(`inside getHtmlForWebview and sending the test cases ${testCases}`);
+            const htmlPath = path.join(this._extensionUri.fsPath, 'src', 'webview.html');
             let html = fs.readFileSync(htmlPath, 'utf8');
             html = html.replace('{{nonce}}', nonce);
+            html = html.replace('{{testCases}}', testCases);
             return html;
     }
 
@@ -122,13 +138,22 @@ class TestCaseViewProvider {
         
         const testCases = this._testCasesStorage[this._activeFile] || [];
         const results = [];
-
+        let i=0;
         for (const testCase of testCases) {
+            i++;
+            console.log(`Running test case ${i}`);
+            console.log(`inside runtestcases and runing the test cases`);
             const result = await this._runTestCase(testCase);
             results.push(result);
         }
-
+        console.log(`inside runtestcases and sending the test results`);
+        console.log(`Sending test results to webview: ${results} ${results.length} ${results[0]}`);
+        console.log(`Sending test results to webview: ${typeof(results)} ${typeof(results[0])}`);
+        console.log(`Sending test results to webview: ${this._webviewView}`);
+        console.log("Is webview visible:", this._webviewView?.visible);
+        console.log("Test results to send:", JSON.stringify(results, null, 2));
         this._webviewView.webview.postMessage({ command: "testResults", results });
+        console.log("Webview script loaded");
     }
 
     /**
@@ -137,79 +162,79 @@ class TestCaseViewProvider {
      * @returns {Promise<Object>}
      */
     async _runTestCase(testCase) {
-        const terminal = vscode.window.createTerminal(`Test Case Runner`);
         const fileExtension = path.extname(this._activeFile).substring(1);
-
-        let runCommand;
-                switch (fileExtension) {
-            case 'js':
-                runCommand = `node ${this._activeFile}`;
-                break;
-            case 'py':
-                runCommand = `python ${this._activeFile}`;
-                break;
-            case 'cpp':
-                runCommand = `g++ "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`;
-                break;
-            case 'c':
-                runCommand = `gcc "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`;
-                break;
-            case 'java':
-                runCommand = `javac "${this._activeFile}" && java -cp "${path.dirname(this._activeFile)}" "${path.basename(this._activeFile, '.java')}"`;
-                break;
-            case 'cs':
-                runCommand = `csc "${this._activeFile}" && "${path.basename(this._activeFile, '.cs')}.exe"`;
-                break;
-            case 'ts':
-                runCommand = `tsc "${this._activeFile}" && node "${this._activeFile.replace('.ts', '.js')}"`;
-                break;
-            case 'php':
-                runCommand = `php "${this._activeFile}"`;
-                break;
-            case 'swift':
-                runCommand = `swift "${this._activeFile}"`;
-                break;
-            case 'kt':
-                runCommand = `kotlinc "${this._activeFile}" -include-runtime -d "${this._activeFile}.jar" && java -jar "${this._activeFile}.jar"`;
-                break;
-            case 'dart':
-                runCommand = `dart "${this._activeFile}"`;
-                break;
-            case 'go':
-                runCommand = `go run "${this._activeFile}"`;
-                break;
-            case 'rb':
-                runCommand = `ruby "${this._activeFile}"`;
-                break;
-            case 'scala':
-                runCommand = `scala "${this._activeFile}"`;
-                break;
-            case 'rs':
-                runCommand = `rustc "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`;
-                break;
-            case 'rkt':
-                runCommand = `racket "${this._activeFile}"`;
-                break;
-            case 'erl':
-                runCommand = `erl -noshell -s "${path.basename(this._activeFile, '.erl')}" main -s init stop`;
-                break;
-            case 'ex':
-                runCommand = `elixir "${this._activeFile}"`;
-                break;
-            default:
-                vscode.window.showErrorMessage(`Unsupported file extension: ${fileExtension}`);
-                return { input: testCase.input, output: "Unsupported file extension" };
+        console.log(`Running test case for ${fileExtension}`);
+        console.log(`input: ${testCase.input}`);
+        console.log(`output: ${testCase.output}`);
+    
+        // Mapping file extensions to run commands
+        const commands = {
+            js: `node ${this._activeFile}`,
+            py: `python ${this._activeFile}`,
+            cpp: `g++ "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`,
+            c: `gcc "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`,
+            java: `javac "${this._activeFile}" && java -cp "${path.dirname(this._activeFile)}" "${path.basename(this._activeFile, '.java')}"`,
+            cs: `csc "${this._activeFile}" && "${path.basename(this._activeFile, '.cs')}.exe"`,
+            ts: `tsc "${this._activeFile}" && node "${this._activeFile.replace('.ts', '.js')}"`,
+            php: `php "${this._activeFile}"`,
+            swift: `swift "${this._activeFile}"`,
+            kt: `kotlinc "${this._activeFile}" -include-runtime -d "${this._activeFile}.jar" && java -jar "${this._activeFile}.jar"`,
+            dart: `dart "${this._activeFile}"`,
+            go: `go run "${this._activeFile}"`,
+            rb: `ruby "${this._activeFile}"`,
+            scala: `scala "${this._activeFile}"`,
+            rs: `rustc "${this._activeFile}" -o "${this._activeFile}.exe" && "${this._activeFile}.exe"`,
+            rkt: `racket "${this._activeFile}"`,
+            erl: `erl -noshell -s "${path.basename(this._activeFile, '.erl')}" main -s init stop`,
+            ex: `elixir "${this._activeFile}"`
+        };
+    
+        if (!commands[fileExtension]) {
+            vscode.window.showErrorMessage(`Unsupported file extension: ${fileExtension}`);
+            return { input: testCase.input, output: "Unsupported file extension" };
         }
-
-        terminal.sendText(runCommand);
-        terminal.show();
-
+    
+        const runCommand = commands[fileExtension];
+        console.log(`Running command: ${runCommand}`);
+    
         return new Promise((resolve) => {
-            const disposable = vscode.window.onDidCloseTerminal((closedTerminal) => {
-                if (closedTerminal === terminal) {
-                    resolve({ input: testCase.input, output: "Test case output" });
-                    disposable.dispose();
+            console.log(`inside promise`);
+            const process = exec(runCommand, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Execution Error: ${error.message}`);
+                    return resolve({ 
+                        input: testCase.input, 
+                        output: `Error: ${error.message}` 
+                    });
                 }
+    
+                if (stderr) {
+                    console.error(`Stderr: ${stderr}`);
+                    return resolve({ 
+                        input: testCase.input, 
+                        output: `Error: ${stderr}` 
+                    });
+                }
+
+                console.log(`Stdout: ${stdout}`);
+                resolve({ 
+                    input: testCase.input, 
+                    output: stdout.trim() 
+                });
+            });
+    
+            process.on('SIGTERM', () => {
+                console.log('Child process received SIGTERM. Terminating...');
+                process.kill();
+                vscode.window.showErrorMessage('Execution timed out');
+                resolve({ 
+                    input: testCase.input, 
+                    output: 'SIGTERM' 
+                });
+            });
+    
+            process.on('exit', (code) => {
+                console.log(`Child process exited with code: ${code}`);
             });
         });
     }

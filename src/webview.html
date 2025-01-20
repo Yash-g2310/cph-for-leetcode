@@ -1,6 +1,6 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +12,7 @@
             background-color: var(--vscode-editor-background);
             color: var(--vscode-editor-foreground);
         }
+
         .test-case {
             margin-bottom: 20px;
             padding: 15px;
@@ -20,17 +21,20 @@
             background: var(--vscode-editorWidget-background);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         .test-case .header {
             font-weight: bold;
             margin-bottom: 10px;
             color: var(--vscode-editor-foreground);
         }
+
         .test-case .inputHeader,
         .test-case .expectedOutputHeader,
         .test-case .outputHeader {
             margin-bottom: 5px;
             color: var(--vscode-editor-foreground);
         }
+
         .test-case .input,
         .test-case .expectedOutput,
         .test-case .output {
@@ -40,17 +44,20 @@
             border-radius: 4px;
             background: var(--vscode-editorWidget-background);
         }
+
         .test-case .input-variable {
             display: flex;
             max-width: fit-content;
             align-items: center;
             margin-bottom: 5px;
         }
+
         .test-case .input-variable span {
             margin-right: 10px;
             font-weight: bold;
             color: var(--vscode-editor-foreground);
         }
+
         .test-case .input-variable textarea {
             flex: 1;
             padding: 5px;
@@ -60,6 +67,7 @@
             background: var(--vscode-editor-background);
             color: var(--vscode-editor-foreground);
         }
+
         .test-case .expectedOutput-value,
         .test-case .output-value {
             padding: 5px;
@@ -70,11 +78,13 @@
             max-width: 13rem;
             color: var(--vscode-editor-foreground);
         }
+
         .test-case .output-value {
             background: var(--vscode-editor-background);
             color: var(--vscode-editor-foreground);
             resize: none;
         }
+
         .form {
             margin-top: 20px;
             padding: 15px;
@@ -83,6 +93,7 @@
             background: var(--vscode-editorWidget-background);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         .form input {
             margin-bottom: 10px;
             display: block;
@@ -93,6 +104,7 @@
             background: var(--vscode-editor-background);
             color: var(--vscode-editor-foreground);
         }
+
         .form button {
             margin-bottom: 10px;
             padding: 10px 15px;
@@ -102,11 +114,32 @@
             border-radius: 4px;
             cursor: pointer;
         }
+
         .form button:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .delete-button {
+            padding: 4px 8px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .delete-button:hover {
             background: var(--vscode-button-hoverBackground);
         }
     </style>
 </head>
+
 <body>
     <h3>Test Cases for File</h3>
     <div id="testCases"></div>
@@ -117,8 +150,35 @@
     </div>
     <script nonce="{{nonce}}">
         const vscode = acquireVsCodeApi();
-        let testCases = [];
+        console.log("Loading webview script");
+        const rawTestCases = '{{testCases}}';
+        console.log('rawTestCases', rawTestCases);
+        let testCases;
+        try {
+            testCases = JSON.parse(rawTestCases);
+            console.log('testCases from script', testCases);
+        } catch (e) {
+            console.error('Error parsing testCases:', e);
+        }
+        console.log('testCases from script', testCases);
+
+        console.log("Setting up message listener");
+        window.addEventListener("message", (event) => {
+            const message = event.data;
+            if (message.command === "updateTestCases") {
+                console.log("Updating test cases in webview");
+                testCases = message.testCases || [];
+                renderTestCases();
+            }
+            else if (message.command === "testResults") {
+                console.log("Processing test results in webview:", message.results);
+                updateTestResults(message.results);
+            }
+        });
+
         function renderTestCases() {
+            console.log("Rendering test cases");
+            console.log('testCases', testCases);
             const container = document.getElementById("testCases");
             container.innerHTML = "";
             if (testCases.length === 0) {
@@ -128,10 +188,28 @@
             testCases.forEach((testCase, index) => {
                 const div = document.createElement("div");
                 div.className = "test-case";
+
+                const headerContainer = document.createElement("div");
+                headerContainer.className = "header-container";
+
                 const header = document.createElement("p");
                 header.className = "header";
                 header.innerText = "Test Case " + (index + 1);
-                div.appendChild(header);
+
+                const deleteButton = document.createElement("button");
+                deleteButton.innerHTML = "&#10005;";
+                deleteButton.className = "delete-button";
+
+                deleteButton.addEventListener("click", () => {
+                    testCases.splice(index, 1);
+                    saveTestCases();
+                    renderTestCases();
+                });
+
+                headerContainer.appendChild(header);
+                headerContainer.appendChild(deleteButton);
+                div.appendChild(headerContainer);
+
                 const inputHeader = document.createElement("p");
                 inputHeader.className = "inputHeader";
                 inputHeader.innerText = "Input";
@@ -164,9 +242,9 @@
                     testCase.output = expectedOutput.value;
                     saveTestCases();
                 });
-                
+
                 div.appendChild(expectedOutput);
-                
+
                 const outputHeader = document.createElement("p");
                 outputHeader.className = "outputHeader";
                 outputHeader.innerText = "Output: ";
@@ -193,6 +271,7 @@
                 });
             }
             testCases.push(testCase);
+            saveTestCases();
             renderTestCases();
         }
 
@@ -202,7 +281,7 @@
                 testCases: testCases
             });
         }
-        
+
         function runTestCases() {
             vscode.postMessage({
                 command: "runTestCases",
@@ -210,24 +289,20 @@
             });
         }
 
-        window.addEventListener("message", (event) => {
-            const message = event.data;
-            if (message.command === "updateTestCases") {
-                testCases = message.testCases || [];
-                renderTestCases();
-            } else if (message.command === "testResults") {
-                updateTestResults(message.results);
-            }
-        });
-
         function updateTestResults(results) {
             const outputDivs = document.getElementsByClassName("output-value");
-            outputDivs.forEach((output, index) => {
-                output.value = results[index];
+            console.log('outputDivs', outputDivs);
+            Array.from(outputDivs).forEach((output, index) => {
+                if (results[index] && results[index].output) {
+                    output.value = results[index].output;
+                }
             });
         }
+
+
 
         renderTestCases();
     </script>
 </body>
+
 </html>

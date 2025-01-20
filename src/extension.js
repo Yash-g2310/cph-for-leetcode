@@ -1,6 +1,6 @@
 const vscode = require("vscode");
 const { LeetCode } = require("leetcode-query"); // Use default import
-const { getLanguages, createOpenFile,extractTestCases,getExtension } = require("./utility-functions");
+const { getLanguages, createOpenFile, extractTestCases, getExtension } = require("./utility-functions");
 // const { createTestCaseTab } = require("./webview");
 const { TestCaseViewProvider } = require("./testCaseViewProvider");
 
@@ -21,29 +21,35 @@ function activate(context) {
 	);
 
 	const testCaseViewProvider = new TestCaseViewProvider(context.extensionUri, context.globalState);
-    context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider("testCaseView", testCaseViewProvider)
-    );
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider("testCaseView", testCaseViewProvider)
+	);
 
 	vscode.window.onDidChangeActiveTextEditor((editor) => {
+		console.log("Active text editor changed");
 		if (editor) {
 			const fileName = editor.document.fileName;
 			testCaseViewProvider.setActiveFile(fileName);
+			testCaseViewProvider.saveTestCasesForFile(testCaseViewProvider._activeFile);
 		}
 	});
 
+
 	// Handle saving test cases before closing the editor
 	vscode.workspace.onDidCloseTextDocument((document) => {
+		console.log("Document closed");
 		const fileName = document.fileName;
 		testCaseViewProvider.saveTestCasesForFile(fileName);
 	});
 
 	vscode.workspace.onWillSaveTextDocument((event) => {
-        const fileName = event.document.fileName;
-        testCaseViewProvider.saveTestCasesForFile(fileName);
-    });
+		console.log("Document will be saved");
+		const fileName = event.document.fileName;
+		testCaseViewProvider.saveTestCasesForFile(fileName);
+	});
 
 	vscode.workspace.onDidDeleteFiles((event) => {
+		console.log("Files deleted");
 		const files = event.files;
 		files.forEach((file) => {
 			delete testCaseViewProvider._testCasesStorage[file.fsPath];
@@ -52,11 +58,13 @@ function activate(context) {
 	})
 
 	vscode.workspace.onDidCreateFiles((event) => {
+		console.log("Files created");
 		event.files.forEach((file) => {
 			if (testCaseViewProvider._testCasesStorage[file.fsPath] === undefined) {
 				testCaseViewProvider._testCasesStorage[file.fsPath] = [];
 			}
 			testCaseViewProvider.setActiveFile(file.fsPath);
+			testCaseViewProvider.saveTestCasesForFile(file.fsPath);
 		});
 	});
 
@@ -109,13 +117,14 @@ function activate(context) {
 					code
 				);
 				let testCases = extractTestCases(problem["content"]);
-				if (
-					testCaseViewProvider._testCasesStorage[filePath] === undefined ||
-					testCaseViewProvider._testCasesStorage[filePath].length === 0
-				) {
-					testCaseViewProvider._testCasesStorage[filePath] = testCases;
-				}
+				console.log("Test cases from extension: ", testCases);
+				console.log("---------", testCaseViewProvider._testCasesStorage[filePath]);
+
+				testCaseViewProvider._testCasesStorage[filePath] = testCases;
+				testCaseViewProvider.saveTestCasesForFile(filePath);
+				console.log("->->->->")
 				vscode.commands.executeCommand("testCaseView.focus").then(() => {
+					console.log("Focus on test case view");
 					testCaseViewProvider.setActiveFile(filePath);
 					testCaseViewProvider.saveTestCasesForFile(filePath);
 				});
@@ -130,8 +139,8 @@ function activate(context) {
 	const runTestCases = vscode.commands.registerCommand(
 		"cph-for-leetcode.runTestCases",
 		async function () {
-			vscode.commands.executeCommand("testCaseView.focus").then(() => {
-				testCaseViewProvider._runTestCases();
+			vscode.commands.executeCommand("testCaseView.focus").then(async () => {
+				await testCaseViewProvider._runTestCases();
 			})
 		}
 	);
