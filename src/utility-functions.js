@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const {getCommentTemplate} = require('./langSwitch');
 
+// function to extract languages from code snippets
 /**
  * @param {Array} codeSnippets - Array of code snippets.
  */
@@ -14,24 +15,23 @@ const getLanguages = async (codeSnippets) => {
     return languages;
 };
 
+// function to create file if file does not exist in workspace root else open the file
 /**
  * @param {string} filename - Name of the file to create.
  * @param {string} fileExtension - Content to write to the file.
  * @param {string} content - Content to write to the file.
  */
-
 async function createOpenFile(filename, fileExtension, content) {
-    // Check if there is a workspace folder open
+    
+    // manage workspace folder
     const workspaceFolder = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0].uri.fsPath : null;
 
     let folderPath;
     let filePath;
     
     if (workspaceFolder) {
-        // If workspace is open, create the file inside the workspace
         folderPath = workspaceFolder;
     } else {
-        // If no workspace, prompt user to select or create a folder
         const folderUri = await vscode.window.showOpenDialog({
             canSelectFolders: true,
             canSelectFiles: false,
@@ -45,36 +45,32 @@ async function createOpenFile(filename, fileExtension, content) {
 
         folderPath = folderUri[0].fsPath;
 
-        // Optional: If folder doesn't exist, you can create it
+        // added for safety
         if (!fs.existsSync(folderPath)) {
             fs.mkdirSync(folderPath);
         }
     }
 
-    // Create a new file in the selected folder
     filePath = path.join(folderPath, `${filename}.${fileExtension}`);
     const fileUri = vscode.Uri.file(filePath);
     const commentTemplate = getCommentTemplate(fileExtension);
 
     try{
+        // if file exists, open it
         await vscode.workspace.fs.stat(fileUri);
         const document = await vscode.workspace.openTextDocument(fileUri);
         await vscode.window.showTextDocument(document);
-        vscode.window.showInformationMessage("File opened successfully!");
     // eslint-disable-next-line no-unused-vars
     } catch (error) {
+        // if file does not exist, create it
         const encoder = new TextEncoder(); // Encoder to convert text to bytes
         const data = encoder.encode(commentTemplate + content);
         await vscode.workspace.fs.writeFile(fileUri, data);
         const document = await vscode.workspace.openTextDocument(fileUri);
         await vscode.window.showTextDocument(document);
-        vscode.window.showInformationMessage("File created successfully!");
     }
-    // Path for the new file
-    vscode.window.showInformationMessage(filename);
-                vscode.window.showInformationMessage(fileExtension);
-                vscode.window.showInformationMessage(content);
 
+    // if work space is not open, open it, with folder made above
     if (!vscode.workspace.workspaceFolders) {
         const workspaceUri = vscode.Uri.file(folderPath);
         await vscode.commands.executeCommand('vscode.openFolder', workspaceUri);
@@ -82,6 +78,7 @@ async function createOpenFile(filename, fileExtension, content) {
     return filePath;
 }
 
+// extracting testcases
 /**
  * @param {string} htmlString - Test cases to write to the file.
  * @param {string} metaData - Meta data of the problem.
@@ -94,6 +91,7 @@ function extractTestCases(htmlString,metaData) {
     const rawInputs = [];
     const rawOutputs = [];
 
+    // get raw inputs and outputs
     while ((match = inputRegex.exec(htmlString)) !== null) {
         rawInputs.push(match[0]);
     }
@@ -106,6 +104,7 @@ function extractTestCases(htmlString,metaData) {
     const FinalInputFormat =[];
     const types = getTests(metaData);
 
+    // final input output
     rawInputs.forEach((input) => {
         const inputPairs = input.substring(24,input.length-1).split(', ').map(pair => pair.trim());
         const inputObj = {};
@@ -120,12 +119,13 @@ function extractTestCases(htmlString,metaData) {
         FinalOutputs.push(out);
     });
     
+    // inputFormat -> how to give input to terminal at the time of running code
     FinalInputs.forEach((input) => {
         const inputFormat = getInputformat(input,types);
         FinalInputFormat.push(inputFormat);
-
     })
 
+    // return test case objects
     const testCaseObjects = [];
     FinalInputs.forEach((input, index) => {
         const output = FinalOutputs[index];
@@ -137,22 +137,19 @@ function extractTestCases(htmlString,metaData) {
         });
     });
 
-    console.log("+++++++++++++++++++++++++++++++++++++Test case objects: ");
-    console.log(testCaseObjects);
     return testCaseObjects;
 }
 
+// function to get the input format for the given input
 /**
- * 
  * @param {*} input - input object
  * @param {Array} types - type of input
  * @returns 
  */
 function getInputformat(input,types){
-    console.log("in getinputformat");
-    console.log(types);
     let ind=0;
     let inputformat = '';
+
     for(const key in input){
         let i=0;
         let ipt=input[key];
@@ -168,20 +165,15 @@ function getInputformat(input,types){
         }
         else if (i === 2){
             const type = types[ind];
-            console.log("type: ",type,typeof(type));
-            console.log("lowercase: ",type.toLowerCase());
             ipt = input[key].substring(1,input[key].length-1);
             let arr = ipt.split('],[');
             if (type.toLowerCase().includes('matrix') || type.toLowerCase().includes('board')){
-                console.log("--------------a");
                 inputformat+=`${arr.length} ${arr[0].split(',').length}\n`;
             }
             else if(type.toLowerCase().includes('tree') || type.toLowerCase().includes('graph')){
-                console.log("--------------b");
                 inputformat+=`${arr.length}\n`;
             }
             for(let j=0;j<arr.length;j++){
-                console.log("--------------c");
                 let temp = arr[j].split(',');
                 temp.forEach((ele, index) => {
                     temp[index] = ele.replace('[','').replace(']','');
@@ -197,18 +189,14 @@ function getInputformat(input,types){
     return inputformat
 }
 
+// function to get the test case types -> for making sure to give arr length in input format or not
 /**
  * @param {string} metaData - Meta data of the problem.
  * @returns {Array} Array of test case types.
  */
 function getTests(metaData){
-    // Parse JSON string to object
     const metaDataObj = JSON.parse(metaData);
-    console.log(metaDataObj);
-
-    // Extract parameter types
     const paramTypes = metaDataObj.params.map(param => param.name);
-    console.log("-paramtypes>> ",paramTypes);
 
     return paramTypes;
     

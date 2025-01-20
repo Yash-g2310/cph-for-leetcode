@@ -40,9 +40,6 @@ class TestCaseViewProvider {
     }
 
     // updating the webview view (rerender it)
-    /**
-     * Update the webview view with the test cases for the active file.
-     */
     _updateView() {
         if (this._webviewView && this._activeFile) {
             const testCases = this._testCasesStorage[this._activeFile] || [];
@@ -53,18 +50,16 @@ class TestCaseViewProvider {
         }
     }
 
+    // runs when webview is created
     /**
-     * Handle resolving the webview view.
      * @param {vscode.WebviewView} webviewView
      */
     resolveWebviewView(webviewView) {
-        console.log(`Resolving webview view`);
         this._webviewView = webviewView;
 
         // Set up the HTML content for the webview
         webviewView.webview.options = { enableScripts: true };
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-        console.log(`html content for webview ${webviewView.webview.html}`);
 
         // Handle messages from the webview
         webviewView.webview.onDidReceiveMessage(async (message) => {
@@ -79,11 +74,9 @@ class TestCaseViewProvider {
                     }
                     break;
                 case "saveTestCases":
-                    console.log(`Saving test cases for ${this._activeFile}`);
                     if (this._activeFile) {
                         this._testCasesStorage[this._activeFile] = message.testCases;
                         this._globalState.update(this._storageKey, this._testCasesStorage);
-                        console.log(`Test cases saved for ${this._activeFile}`);
                     }
                     break;
                 case "runTestCases":
@@ -98,8 +91,8 @@ class TestCaseViewProvider {
         }
     }
 
+    // for getting html of webview
     /**
-     * Generate HTML content for the webview.
      * @param {vscode.Webview} webview
      * @returns {string}
      */
@@ -108,22 +101,17 @@ class TestCaseViewProvider {
         const testCases = JSON.stringify(
             this._testCasesStorage[this._activeFile] || []
         );
-        console.log(
-            `inside getHtmlForWebview and sending the test cases ${testCases}`
-        );
-        const htmlPath = path.join(
-            this._extensionUri.fsPath,
-            "src",
-            "webview.html"
-        );
+        const htmlPath = path.join(this._extensionUri.fsPath, "src", "webview.html");
         let html = fs.readFileSync(htmlPath, "utf8");
+
+        // adding testcases and nonce to the html
         html = html.replace("{{nonce}}", nonce);
         html = html.replace("{{testCases}}", testCases);
         return html;
     }
 
+    // for generating nonce
     /**
-     * Generate a nonce for security
      * @returns {string} A nonce string
      */
     _getNonce() {
@@ -136,75 +124,54 @@ class TestCaseViewProvider {
         return text;
     }
 
+    // running the test cases
     async _runTestCases() {
         if (!this._activeFile) {
             vscode.window.showErrorMessage("No active file selected.");
             return;
         }
 
+        // create the folder and files to store output
         const workspaceFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
-        const inputDir = path.join(workspaceFolder, "test_inputs");
+        const inputDir = path.join(workspaceFolder, "test_outputs");
         if (!fs.existsSync(inputDir)) {
             fs.mkdirSync(inputDir);
         }
-        const fileNameWithoutExtension = path.basename(
-            this._activeFile,
-            path.extname(this._activeFile)
-        );
+        const fileNameWithoutExtension = path.basename(this._activeFile, path.extname(this._activeFile));
 
+        // run each testCase -> get result -> write output to file (for all test cases)
         const testCases = this._testCasesStorage[this._activeFile] || [];
         const results = [];
         let i = 0;
         for (const testCase of testCases) {
             i++;
-            console.log(`Running test case ${i}`);
-            console.log(`inside runtestcases and runing the test cases`);
             const result = await this._runTestCase(testCase, i);
             results.push(result);
-            console.log(`(((((((((((( inside runtestcases and writing the output to file`);
-            console.log(`((((((((((((  ${result.output}`);
-            console.log(`((((((((((((  ${inputDir}`);
-            console.log(`((((((((((((  ${fileNameWithoutExtension}`);
-            const outputFilePath = path.join(
-                inputDir,
-                `${fileNameWithoutExtension}_output_${i}.txt`
-            );
-            console.log(`((((((((((((  ${outputFilePath}`);
+            const outputFilePath = path.join( inputDir, `${fileNameWithoutExtension}_output_${i}.txt`);
             fs.writeFileSync(outputFilePath, result.output);
-            console.log(`((((((((((((  ${result.output}`);
         }
-        console.log(`inside runtestcases and sending the test results`);
-        console.log(
-            `Sending test results to webview: ${results} ${results.length} ${results[0]}`
-        );
-        console.log(
-            `Sending test results to webview: ${typeof results} ${typeof results[0]}`
-        );
-        console.log(`Sending test results to webview: ${this._webviewView}`);
-        console.log("Is webview visible:", this._webviewView?.visible);
-        console.log("Test results to send:", JSON.stringify(results, null, 2));
+
         this._webviewView.webview.postMessage({ command: "testResults", results });
-        console.log("Webview script loaded");
     }
 
+    // running the test case
     /**
-     * Run a single test case.
      * @param {Object} testCase
      * @param {number} index
      * @returns {Promise<Object>}
      */
     async _runTestCase(testCase, index) {
+        // create file and folder to store input.text seperately
         const fileExtension = path.extname(this._activeFile).substring(1);
-        const fileNameWithoutExtension = path.basename(
-            this._activeFile,
-            path.extname(this._activeFile)
-        );
-        console.log(`Running test case for ${fileExtension}`);
-        console.log(`input: ${testCase.input}`);
-        console.log(`output: ${testCase.output}`);
+        const fileNameWithoutExtension = path.basename( this._activeFile, path.extname(this._activeFile));
+        const workspaceFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
+        const inputDir = path.join(workspaceFolder, "test_inputs");
+        if (!fs.existsSync(inputDir)) {
+            fs.mkdirSync(inputDir);
+        }
 
+        // get runcommand for the file
         const runCommand = possibleCommands(this._activeFile, fileExtension);
-
         if (!runCommand || runCommand === "") {
             vscode.window.showErrorMessage(
                 `Unsupported file extension: ${fileExtension}`
@@ -212,28 +179,14 @@ class TestCaseViewProvider {
             return { input: testCase.input, output: "Unsupported file extension" };
         }
 
-        console.log(`Running command: ${runCommand}`);
-
-        const workspaceFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
-        const inputDir = path.join(workspaceFolder, "test_inputs");
-        if (!fs.existsSync(inputDir)) {
-            fs.mkdirSync(inputDir);
-        }
-        console.log(`)))))))))))))) Input dir: ${inputDir}`);
-        console.log(`)))))))))))))) File name without extension: ${fileNameWithoutExtension}`);
-        const inputFilePath = path.join(
-            inputDir,
-            `${fileNameWithoutExtension}_input_${index}.txt`
-        );
-        console.log(`)))))))))))))) Input file path: ${inputFilePath}`);
+        // write input to file
+        const inputFilePath = path.join( inputDir, `${fileNameWithoutExtension}_input_${index}.txt`);
         fs.writeFileSync(inputFilePath, testCase.inputFormat);
-        console.log(`)))))))))))))) Input file written`);
 
+        // now combine command with input command then run with nodejs child process (exec)
         const commandWithInput = `${runCommand} < ${inputFilePath}`;
-        console.log(`)))))))))))))) Command with input: ${commandWithInput}`);
 
         return new Promise((resolve) => {
-            console.log(`inside promise`);
             const process = exec(commandWithInput, (error, stdout, stderr) => {
                 if (error) {
                     console.error(`Execution Error: ${error.message}`);
