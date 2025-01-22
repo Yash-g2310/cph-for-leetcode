@@ -175,15 +175,12 @@
     </div>
     <script nonce="{{nonce}}">
         const vscode = acquireVsCodeApi();
-        const rawTestCases = '{{testCases}}';
-        let testCases;
+        let testCases = [];
 
-        try {
-            testCases = JSON.parse(rawTestCases);
-            console.log('testCases from script', testCases);
-        } catch (e) {
-            console.error('Error parsing testCases:', e);
-        }
+        window.addEventListener('load',()=>{
+            vscode.postMessage({command: "webviewReady"});
+        })
+        
 
         window.addEventListener("message", (event) => {
             const message = event.data;
@@ -203,15 +200,21 @@
             for(const key in input){
                 let i=0;
                 let ipt=input[key];
-                while(ipt[0]=='['){
+                while(ipt[0]=='[' && ipt.length>1){
                     i++;
                     ipt = ipt.substring(1,ipt.length-1);
                 }
                 if(i === 1){
                     ipt = input[key].substring(1,input[key].length-1);
                     let arr = ipt.split(',');
-                    inputformat+=`${arr.length}\n`;
-                    inputformat+=arr.join(' ')+'\n';
+                    if(arr[0]!=''){
+                        inputformat+=`${arr.length}\n`;
+                        inputformat+=arr.join(' ')+'\n';
+                    }
+                    else{
+                        inputformat+=`0\n`;
+
+                    }
                 }
                 else if (i === 2){
                     const type = types[ind];
@@ -355,7 +358,6 @@
             testCase["input"] = {};
             testCase["output"] = "";
             testCase["inputFormat"] = "";
-
             if (testCases.length !== 0) {
                 Object.entries(testCases[0].input).forEach((entry) => {
                     const variable = entry[0];
@@ -368,6 +370,7 @@
         }
 
         function saveTestCases() {
+
             vscode.postMessage({
                 command: "saveTestCases",
                 testCases: testCases

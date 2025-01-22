@@ -36,6 +36,7 @@ class TestCaseViewProvider {
     saveTestCasesForFile() {
         if (this._activeFile && this._testCasesStorage[this._activeFile]) {
             this._globalState.update(this._storageKey, this._testCasesStorage);
+            this._updateView();
         }
     }
 
@@ -82,6 +83,9 @@ class TestCaseViewProvider {
                 case "runTestCases":
                     await this._runTestCases();
                     break;
+                case "webviewReady":{
+                    this._updateView();
+                }
             }
         });
 
@@ -98,15 +102,11 @@ class TestCaseViewProvider {
      */
     _getHtmlForWebview(webview) {
         const nonce = this._getNonce();
-        const testCases = JSON.stringify(
-            this._testCasesStorage[this._activeFile] || []
-        );
         const htmlPath = path.join(this._extensionUri.fsPath, "src", "webview.html");
         let html = fs.readFileSync(htmlPath, "utf8");
 
         // adding testcases and nonce to the html
         html = html.replace("{{nonce}}", nonce);
-        html = html.replace("{{testCases}}", testCases);
         return html;
     }
 
